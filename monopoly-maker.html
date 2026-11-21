@@ -370,7 +370,7 @@ function createDefaultBoard() {
     owner: null,
     level: 0,
     caption: '',
-    price: Math.round((200 + Math.random() * 600) / 100) * 100
+    price: 200
   }));
 
   // Create a simple square path around the edge
@@ -400,7 +400,9 @@ function createDefaultBoard() {
   // Place a few on the remaining path
   if (pathCells.length) board[pathCells.pop() || path[10]].type = 'jail';
   board[path[5]].type = 'residential';
+  board[path[5]].price = Math.round((200 + Math.random() * 400) / 100) * 100;
   board[path[6]].type = 'residential';
+  board[path[6]].price = Math.round((200 + Math.random() * 400) / 100) * 100;
   board[path[15]].type = 'commercial';
   board[path[20]].type = 'chance';
   board[path[25]].type = 'fate';
@@ -506,6 +508,8 @@ function paintCell(idx) {
   if (nextType === 'start') board[idx].caption = 'START';
   else if (nextType === 'jail') board[idx].caption = 'P ST';
   else board[idx].caption = '';
+  if (nextType === 'residential') board[idx].price = Math.round((200 + Math.random() * 400) / 100) * 100;
+  if (nextType === 'commercial') board[idx].price = Math.round((400 + Math.random() * 400) / 100) * 100;
 
   renderBoard();
   log(`Cycled cell ${idx} to ${nextType}`);
@@ -940,7 +944,8 @@ function handleLanding(cell, cellIdx) {
     if (cell.owner === null) {
       showBuyPopup(player, cell, cellIdx);
     } else if (cell.owner !== currentPlayer) {
-      const rent = Math.round(cell.price * 0.3 / 10) * 10; // 30%, rounded to nearest 10
+      const rentRate = cell.type === 'commercial' ? 0.5 : 0.3;
+      const rent = Math.round(cell.price * rentRate / 10) * 10;
       player.money -= rent;
       players[cell.owner].money += rent;
       log(`${player.name} paid $${rent} rent to ${players[cell.owner].name}`);
