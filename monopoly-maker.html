@@ -1,0 +1,1387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monopoly Maker — Local Prototype</title>
+<style>
+  :root {
+    --bg: #111;
+    --panel: #1e1e1e;
+    --accent: #f4d03f;
+    --text: #eee;
+    --tile: #2a2a2a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, sans-serif;
+    background: #0d0d0d;
+    color: var(--text);
+    min-height: 100vh;
+  }
+  header {
+    background: #000;
+    padding: 12px 16px;
+    border-bottom: 2px solid var(--accent);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: space-between;
+    align-items: center;
+  }
+  header > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  header button {
+    padding: 10px 14px;
+    font-size: 14px;
+    min-height: 40px;
+  }
+  h1 { margin: 0; font-size: 1.4rem; color: var(--accent); }
+  .container {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 16px;
+    padding: 16px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  @media (max-width: 1000px) {
+    .container { grid-template-columns: 1fr; }
+  }
+  .board-wrap {
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 12px;
+    overflow: auto;
+  }
+  #board {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 3px;
+    aspect-ratio: 1;
+    max-width: 720px;
+    margin: 0 auto;
+    background: #000;
+    padding: 6px;
+    border-radius: 8px;
+  }
+  .cell {
+    aspect-ratio: 1;
+    background: #333;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    position: relative;
+    text-align: center;
+    padding: 2px;
+    user-select: none;
+  }
+  .cell.start { background: #e74c3c; color: white; }
+  .cell.residential { background: #f1c40f; color: #000; }
+  .cell.commercial { background: #27ae60; color: white; }
+  .cell.chance { background: #3498db; color: white; }
+  .cell.fate { background: #9b59b6; color: white; }
+  .cell.jail { background: #7f8c8d; color: white; }
+  .cell.path { background: #888888; color: #000; }
+  .cell.empty { background: #444; }
+  .cell.owned {
+    box-shadow: inset 0 0 0 4px currentColor;
+  }
+  .player-token {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: none;
+    font-size: 8px;
+    font-weight: bold;
+    color: #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    z-index: 2;
+  }
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .panel {
+    background: var(--panel);
+    border-radius: 10px;
+    padding: 14px;
+  }
+  .panel h3 {
+    margin: 0 0 10px 0;
+    color: var(--accent);
+    font-size: 1rem;
+  }
+  button, select, input {
+    background: #333;
+    color: white;
+    border: 1px solid #555;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  button:hover { background: #444; }
+  button.primary { background: #2980b9; }
+  button.primary:hover { background: #3498db; }
+  button.danger { background: #c0392b; }
+  .players { display: flex; flex-direction: column; gap: 6px; }
+  .player-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #2a2a2a;
+    padding: 6px 10px;
+    border-radius: 6px;
+  }
+  .log {
+    height: 140px;
+    overflow-y: auto;
+    background: #111;
+    border-radius: 6px;
+    padding: 8px;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .debug-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+  .tile-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 11px;
+    margin-top: 8px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+  }
+  #customCards {
+    max-height: 120px;
+    overflow-y: auto;
+    font-size: 12px;
+  }
+  .card-item {
+    background: #2a2a2a;
+    margin: 4px 0;
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+  }
+  #popupOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+  #popupBox {
+    background: #1e1e1e;
+    border: 2px solid var(--accent);
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 320px;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  }
+  #popupBox h3 {
+    margin: 0 0 12px 0;
+    color: var(--accent);
+  }
+  #popupMessage {
+    margin: 0 0 20px 0;
+    line-height: 1.5;
+    font-size: 15px;
+  }
+  #popupOk {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    padding: 10px 28px;
+    font-weight: bold;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Monopoly Maker</h1>
+  <div>
+    <button onclick="saveGame()">Save</button>
+    <button onclick="loadGame()">Load</button>
+    <button onclick="generateRandomMap()">Random Map</button>
+    <button onclick="randomizeAllTiles()">Randomize Tiles</button>
+    <button onclick="randomizePathOnly()">Randomize Path</button>
+    <button onclick="resetAllToGray()">Reset to Gray</button>
+    <button onclick="resetBoard()">Reset Board</button>
+  </div>
+</header>
+
+<div class="container">
+  <div class="board-wrap">
+    <div id="board"></div>
+    <div class="tile-legend" id="legend"></div>
+  </div>
+
+  <div class="sidebar">
+    <!-- Game Controls -->
+    <div class="panel">
+      <h3>Game</h3>
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <button class="primary" onclick="rollDice()">Roll Dice</button>
+      </div>
+      <div id="diceResult" style="font-size:1.4rem; font-weight:bold; text-align:center; margin:8px 0;">—</div>
+      <div class="players" id="playerList"></div>
+    </div>
+
+    <!-- Debug Panel -->
+    <div class="panel">
+      <h3>Debug / Edit Room</h3>
+      <div style="margin-bottom:8px;">
+        <label>Current Player: </label>
+        <select id="debugPlayer" onchange="updateDebugPlayer()"></select>
+      </div>
+      <div class="debug-grid">
+        <input type="number" id="debugMoney" placeholder="Money" value="1500">
+        <button onclick="setPlayerMoney()">Set Money</button>
+        <input type="number" id="debugPos" placeholder="Position" value="0">
+        <button onclick="teleportPlayer()">Teleport</button>
+        <button onclick="addMoney(500)">+$500</button>
+        <button onclick="addMoney(-500)">-$500</button>
+        <button onclick="goToJail()">Send to Jail</button>
+        <button onclick="freeFromJail()">Free from Jail</button>
+      </div>
+      <hr style="border-color:#333; margin:12px 0;">
+      <p style="font-size:12px; color:#aaa; margin:6px 0 0;">Click any tile to cycle: Gray → Path → START → Res → Com → Chance → Fate → P ST → Gray<br>Only one START is allowed. Owned properties show a colored border.</p>
+    </div>
+
+    <!-- Custom Cards -->
+    <div class="panel">
+      <h3>Chance / Fate Cards</h3>
+      <input id="cardText" placeholder="Card text (e.g. Lost $1000 in Genting)" style="width:100%; margin-bottom:6px;">
+      <div style="display:flex; gap:6px; margin-bottom:8px;">
+        <input type="number" id="cardMoney" placeholder="Money ±" value="-100" style="width:90px;">
+        <select id="cardType">
+          <option value="chance">Chance</option>
+          <option value="fate">Fate</option>
+        </select>
+        <button onclick="addCard()">Add</button>
+      </div>
+      <div id="customCards"></div>
+    </div>
+
+    <!-- Log -->
+    <div class="panel">
+      <h3>Game Log</h3>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+</div>
+
+<div id="popupOverlay">
+  <div id="popupBox">
+    <h3 id="popupTitle">Action</h3>
+    <p id="popupMessage">Something happened.</p>
+    <button id="popupOk" onclick="closePopup()">OK</button>
+  </div>
+</div>
+
+<script>
+const GRID = 10;
+const START_MONEY = 1500;
+const SALARY = 1000;
+const LAND_START_BONUS = 1000;
+const OVERDRAFT_INTEREST = 0.05;
+
+const TILE_COLORS = {
+  empty: '#444444',
+  path: '#888888',
+  start: '#e74c3c',
+  residential: '#f1c40f',
+  commercial: '#27ae60',
+  chance: '#3498db',
+  fate: '#9b59b6',
+  jail: '#7f8c8d'
+};
+
+let board = [];
+let path = [];          // ordered indices for movement
+let players = [];
+let currentPlayer = 0;
+let cards = { chance: [], fate: [] };
+let selectedPaint = 'path';
+
+// Default cards inspired by the discussion
+const DEFAULT_CARDS = [
+  { type: 'chance', text: 'Lost $1000 in Genting', money: -1000 },
+  { type: 'chance', text: 'Lend $100 to auntie', money: -100 },
+  { type: 'fate', text: 'Lost mahjong session, flip table... lose $400', money: -400 },
+  { type: 'fate', text: '4 tires stolen by mutual friend, lost $1000', money: -1000 },
+  { type: 'chance', text: 'Win Toto, get $1200', money: 1200 },
+  { type: 'fate', text: 'Welcome freaks. Now pay up!! (toll)', money: -150 },
+  { type: 'chance', text: 'Found $200 on the street', money: 200 },
+  { type: 'fate', text: 'Go to Jail', money: 0, extra: 'jail' }
+];
+
+function init() {
+  createDefaultBoard();
+  initPlayers();
+  cards.chance = DEFAULT_CARDS.filter(c => c.type === 'chance');
+  cards.fate = DEFAULT_CARDS.filter(c => c.type === 'fate');
+  renderBoard();
+  renderPlayers();
+  renderCards();
+  renderLegend();
+  log('Game initialized. Movement is clockwise. Turn ends automatically after each roll. Click cells to paint.');
+}
+
+function createDefaultBoard() {
+  board = Array(GRID * GRID).fill(null).map((_, i) => ({
+    type: 'empty',
+    owner: null,
+    level: 0,
+    caption: '',
+    price: Math.round((200 + Math.random() * 600) / 100) * 100
+  }));
+
+  // Create a simple square path around the edge
+  path = [];
+  // Top row left to right
+  for (let x = 0; x < GRID; x++) path.push(x);
+  // Right column top to bottom (skip first)
+  for (let y = 1; y < GRID; y++) path.push(y * GRID + (GRID - 1));
+  // Bottom row right to left (skip first)
+  for (let x = GRID - 2; x >= 0; x--) path.push((GRID - 1) * GRID + x);
+  // Left column bottom to top (skip first and last)
+  for (let y = GRID - 2; y >= 1; y--) path.push(y * GRID);
+
+  // Mark all path cells
+  path.forEach(idx => {
+    board[idx].type = 'path';
+  });
+
+  // Place specials ONLY on path cells
+  const pathCells = [...path];
+  const take = () => pathCells.splice(Math.floor(Math.random() * pathCells.length), 1)[0];
+
+  const startIdx = 0; // keep START at top-left
+  board[startIdx].type = 'start';
+  board[startIdx].caption = 'START';
+
+  // Place a few on the remaining path
+  if (pathCells.length) board[pathCells.pop() || path[10]].type = 'jail';
+  board[path[5]].type = 'residential';
+  board[path[6]].type = 'residential';
+  board[path[15]].type = 'commercial';
+  board[path[20]].type = 'chance';
+  board[path[25]].type = 'fate';
+  board[path[30]].type = 'chance';
+}
+
+function initPlayers() {
+  players = [
+    { name: 'Player 1', money: START_MONEY, pos: 0, color: '#e74c3c', inJail: false, jailTurns: 0, lastDir: null },
+    { name: 'Player 2', money: START_MONEY, pos: 0, color: '#3498db', inJail: false, jailTurns: 0, lastDir: null },
+    { name: 'Player 3', money: START_MONEY, pos: 0, color: '#2ecc71', inJail: false, jailTurns: 0, lastDir: null },
+    { name: 'Player 4', money: START_MONEY, pos: 0, color: '#f39c12', inJail: false, jailTurns: 0, lastDir: null }
+  ];
+  updatePlayerSelect();
+}
+
+function updatePlayerSelect() {
+  const sel = document.getElementById('debugPlayer');
+  sel.innerHTML = players.map((p, i) => `<option value="${i}">${p.name}</option>`).join('');
+  sel.value = currentPlayer;
+}
+
+function renderBoard() {
+  const boardEl = document.getElementById('board');
+  boardEl.innerHTML = '';
+  boardEl.style.gridTemplateColumns = `repeat(${GRID}, 1fr)`;
+
+  board.forEach((cell, idx) => {
+    const div = document.createElement('div');
+    div.className = `cell ${cell.type}`;
+    div.dataset.idx = idx;
+
+    let label = '';
+    if (cell.type === 'start') label = 'START';
+    else if (cell.type === 'jail') label = 'P ST';
+    else if (cell.type === 'chance') label = '?';
+    else if (cell.type === 'fate') label = '!';
+    else if (cell.type === 'residential') label = 'Res';
+    else if (cell.type === 'commercial') label = 'Com';
+    else if (cell.type === 'path') label = '';
+
+    div.innerHTML = label;
+
+    if (cell.owner !== null && players[cell.owner]) {
+      const ownerColor = players[cell.owner].color;
+      div.style.boxShadow = `inset 0 0 0 3px ${ownerColor}`;
+      div.style.outline = `2px solid ${ownerColor}`;
+    }
+
+    // Player tokens (offset when multiple on same tile)
+    const onThisTile = players.filter(p => p.pos === idx);
+    onThisTile.forEach((p, ti) => {
+      const token = document.createElement('div');
+      token.className = 'player-token';
+      token.style.background = p.color;
+      token.style.border = 'none';
+      token.style.color = '#000';
+      token.style.left = (2 + (ti % 2) * 14) + 'px';
+      token.style.top = (2 + Math.floor(ti / 2) * 14) + 'px';
+      token.style.width = '12px';
+      token.style.height = '12px';
+      token.style.fontSize = '8px';
+      token.textContent = (players.indexOf(p) + 1);
+      token.title = p.name;
+      if (players.indexOf(p) === currentPlayer) {
+        token.style.zIndex = 3;
+        token.style.boxShadow = '0 0 6px ' + p.color;
+      }
+      div.appendChild(token);
+    });
+
+    div.onclick = () => paintCell(idx);
+    boardEl.appendChild(div);
+  });
+}
+
+function paintCell(idx) {
+  // Once a property is owned, its type cannot be changed
+  if (board[idx].owner !== null && board[idx].owner !== undefined) {
+    showPopup('Locked', 'This property has been purchased and cannot be changed.');
+    return;
+  }
+
+  const cycle = ['empty', 'path', 'start', 'residential', 'commercial', 'chance', 'fate', 'jail'];
+  const current = board[idx].type;
+  let nextIndex = cycle.indexOf(current);
+  if (nextIndex === -1) nextIndex = 0;
+  else nextIndex = (nextIndex + 1) % cycle.length;
+
+  const nextType = cycle[nextIndex];
+
+  // Enforce only one START
+  if (nextType === 'start') {
+    for (let i = 0; i < board.length; i++) {
+      if (board[i].type === 'start') {
+        board[i].type = 'path';
+        board[i].caption = '';
+      }
+    }
+  }
+
+  board[idx].type = nextType;
+  if (nextType === 'start') board[idx].caption = 'START';
+  else if (nextType === 'jail') board[idx].caption = 'P ST';
+  else board[idx].caption = '';
+
+  renderBoard();
+  log(`Cycled cell ${idx} to ${nextType}`);
+}
+
+function renderPlayers() {
+  const el = document.getElementById('playerList');
+  el.innerHTML = players.map((p, i) => {
+    const cellType = board[p.pos] ? board[p.pos].type : '?';
+    return `
+    <div class="player-row" style="${i === currentPlayer ? 'outline:2px solid var(--accent);' : ''}">
+      <span style="color:${p.color}">● ${p.name}</span>
+      <span>$${p.money}</span>
+      <span style="font-size:11px; color:#aaa;">${cellType}</span>
+      <span>${p.inJail ? '🔒' : ''}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderCards() {
+  const el = document.getElementById('customCards');
+  const all = [...cards.chance.map(c => ({...c, type:'chance'})), ...cards.fate.map(c => ({...c, type:'fate'}))];
+  el.innerHTML = all.map((c, i) => `
+    <div class="card-item">
+      <span>[${c.type[0].toUpperCase()}] ${c.text} (${c.money >= 0 ? '+' : ''}${c.money})</span>
+      <button onclick="removeCard('${c.type}', ${i})" style="padding:2px 6px; font-size:11px;">×</button>
+    </div>
+  `).join('') || '<div style="color:#666;">No cards</div>';
+}
+
+function renderLegend() {
+  const el = document.getElementById('legend');
+  const names = { empty: 'empty', path: 'path', start: 'start', residential: 'residential', commercial: 'commercial', chance: 'chance', fate: 'fate', jail: 'P ST' };
+  el.innerHTML = Object.entries(TILE_COLORS).map(([k, c]) => 
+    `<div class="legend-item"><div class="swatch" style="background:${c}"></div>${names[k] || k}</div>`
+  ).join('');
+}
+
+let popupQueue = [];
+let popupActive = false;
+
+function showPopup(title, message) {
+  popupQueue.push({ title, message });
+  processPopupQueue();
+}
+
+function processPopupQueue() {
+  if (popupActive || popupQueue.length === 0) return;
+  popupActive = true;
+  const { title, message } = popupQueue.shift();
+  const overlay = document.getElementById('popupOverlay');
+  if (!overlay) { popupActive = false; return; }
+  document.getElementById('popupTitle').textContent = title;
+  document.getElementById('popupMessage').textContent = message;
+  const okBtn = document.getElementById('popupOk');
+  okBtn.textContent = 'OK';
+  okBtn.onclick = function() {
+    overlay.style.display = 'none';
+    popupActive = false;
+    processPopupQueue();
+  };
+  overlay.style.display = 'flex';
+}
+
+function closePopup() {
+  const overlay = document.getElementById('popupOverlay');
+  if (overlay) overlay.style.display = 'none';
+  popupActive = false;
+  processPopupQueue();
+}
+
+function log(msg) {
+  const el = document.getElementById('log');
+  const time = new Date().toLocaleTimeString();
+  el.innerHTML = `<div>[${time}] ${msg}</div>` + el.innerHTML;
+  el.scrollTop = 0;
+}
+
+// ===== GAME ACTIONS =====
+function rollDice() {
+  const d1 = Math.floor(Math.random() * 6) + 1;
+  const d2 = Math.floor(Math.random() * 6) + 1;
+  const total = d1 + d2;
+  const isDoubles = d1 === d2;
+  document.getElementById('diceResult').textContent = `${d1} + ${d2} = ${total}${isDoubles ? ' (Doubles!)' : ''}`;
+  log(`${players[currentPlayer].name} rolled ${total}${isDoubles ? ' doubles' : ''}`);
+
+  const player = players[currentPlayer];
+
+  // If previous landing had a branch, ask for direction now (on this roll)
+  if (player.pendingBranch) {
+    const branchOptions = getBranchOptions(player.pos, player.lastDir);
+    if (branchOptions.length > 1) {
+      const dirNames = ['↑ Up', '→ Right', '↓ Down', '← Left'];
+      const labels = ['Straight', 'Turn Right'];
+      const overlay = document.getElementById('popupOverlay');
+      document.getElementById('popupTitle').textContent = 'Choose Direction';
+      document.getElementById('popupMessage').textContent = 'Clockwise only: Straight or Turn Right';
+      
+      const box = document.getElementById('popupBox');
+      const oldBtns = box.querySelectorAll('.dir-btn');
+      oldBtns.forEach(b => b.remove());
+      
+      branchOptions.forEach((opt, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'dir-btn';
+        btn.textContent = labels[i] || dirNames[opt.dir];
+        btn.style.cssText = 'margin:6px; padding:12px 18px; font-size:16px; background:#2980b9; color:#fff; border:none; border-radius:8px;';
+        btn.onclick = function() {
+          player.nextDir = opt.dir;
+          log(`${player.name} chose ${labels[i] || dirNames[opt.dir]}.`);
+          player.pendingBranch = false;
+          box.querySelectorAll('.dir-btn').forEach(b => b.remove());
+          closePopup();
+          setTimeout(() => movePlayer(total, isDoubles), 200);
+        };
+        box.appendChild(btn);
+      });
+      
+      overlay.style.display = 'flex';
+      return; // wait for button click
+    }
+    player.pendingBranch = false;
+  }
+
+  if (player.inJail) {
+    player.jailTurns = (player.jailTurns || 0) + 1;
+    if (player.jailTurns >= 3) {
+      // Forced to pay after 3 rounds
+      player.money -= 200;
+      player.inJail = false;
+      player.jailTurns = 0;
+      log(`${player.name} was forced to pay $200 to the Government to leave jail after 3 rounds.`);
+      showPopup('Forced Out of Jail', `${player.name} paid $200 to the Government and is free.`);
+    } else if (isDoubles) {
+      player.inJail = false;
+      player.jailTurns = 0;
+      log(`${player.name} rolled doubles and is free from jail!`);
+      showPopup('Free from Jail', `${player.name} rolled doubles and is free!`);
+    } else {
+      log(`${player.name} is still in jail (round ${player.jailTurns}/3).`);
+      showPopup('Still in Jail', `${player.name} did not roll doubles. Round ${player.jailTurns} of 3.`);
+      endTurn();
+      return;
+    }
+  }
+
+  movePlayer(total, isDoubles);
+}
+
+function isNavigable(type) {
+  return ['path', 'start', 'jail', 'residential', 'commercial', 'chance', 'fate'].includes(type);
+}
+
+function getNeighbors(idx) {
+  const x = idx % GRID;
+  const y = Math.floor(idx / GRID);
+  const dirs = [
+    { dx: 0, dy: -1, dir: 0 }, // up
+    { dx: 1, dy: 0, dir: 1 },  // right
+    { dx: 0, dy: 1, dir: 2 },  // down
+    { dx: -1, dy: 0, dir: 3 }  // left
+  ];
+  const neighbors = [];
+  for (const d of dirs) {
+    const nx = x + d.dx;
+    const ny = y + d.dy;
+    if (nx >= 0 && nx < GRID && ny >= 0 && ny < GRID) {
+      const nidx = ny * GRID + nx;
+      if (isNavigable(board[nidx].type)) {
+        neighbors.push({ idx: nidx, dir: d.dir, incoming: (d.dir + 2) % 4 });
+      }
+    }
+  }
+  return neighbors;
+}
+
+// Prefer clockwise: from incoming direction, prefer right turn, then straight.
+// Only return multiple options when there are genuine forward branches (right AND straight).
+// At start (no lastDir or on START tile with no direction), auto-select a single default without prompting.
+function getClockwiseMoves(currentIdx, lastDir) {
+  const neighbors = getNeighbors(currentIdx);
+  if (neighbors.length === 0) return [];
+  if (neighbors.length === 1) return neighbors;
+
+  const isStartTile = board[currentIdx].type === 'start';
+
+  // Starting position or no previous direction: pick one automatically (prefer right if available)
+  if (lastDir === null || lastDir === undefined || isStartTile) {
+    const preferredStart = neighbors.find(n => n.dir === 1) || neighbors.find(n => n.dir === 2) || neighbors[0];
+    return [preferredStart];
+  }
+
+  // Preferred order: right (clockwise), straight, left, back
+  const right = (lastDir + 1) % 4;
+  const straight = lastDir;
+  const left = (lastDir + 3) % 4;
+  const back = (lastDir + 2) % 4;
+
+  const rightMove = neighbors.find(n => n.dir === right);
+  const straightMove = neighbors.find(n => n.dir === straight);
+  const leftMove = neighbors.find(n => n.dir === left);
+  const backMove = neighbors.find(n => n.dir === back);
+
+  // Only offer choice when both right and straight exist (true forward branch)
+  if (rightMove && straightMove) {
+    return [rightMove, straightMove];
+  }
+
+  // Otherwise take the single best available clockwise option
+  if (rightMove) return [rightMove];
+  if (straightMove) return [straightMove];
+  if (leftMove) return [leftMove];
+  if (backMove) return [backMove];
+
+  return [neighbors[0]]; // fallback
+}
+
+function isNavigable(type) {
+  return ['path', 'start', 'jail', 'residential', 'commercial', 'chance', 'fate'].includes(type);
+}
+
+function getNeighbors(idx) {
+  const x = idx % GRID;
+  const y = Math.floor(idx / GRID);
+  const dirs = [
+    { dx: 0, dy: -1, dir: 0 }, // up
+    { dx: 1, dy: 0, dir: 1 },  // right
+    { dx: 0, dy: 1, dir: 2 },  // down
+    { dx: -1, dy: 0, dir: 3 }  // left
+  ];
+  const neighbors = [];
+  for (const d of dirs) {
+    const nx = x + d.dx;
+    const ny = y + d.dy;
+    if (nx >= 0 && nx < GRID && ny >= 0 && ny < GRID) {
+      const nidx = ny * GRID + nx;
+      if (isNavigable(board[nidx].type)) {
+        neighbors.push({ idx: nidx, dir: d.dir, incoming: (d.dir + 2) % 4 });
+      }
+    }
+  }
+  return neighbors;
+}
+
+function getBranchOptions(currentIdx, facing) {
+  if (facing === null || facing === undefined) return [];
+
+  const neighbors = getNeighbors(currentIdx);
+  const straight = facing;
+  const right = (facing + 1) % 4;
+
+  const straightMove = neighbors.find(n => n.dir === straight);
+  const rightMove = neighbors.find(n => n.dir === right);
+
+  // Only a choice when BOTH straight and right exist.
+  // At a corner only one of them exists, so no choice.
+  if (straightMove && rightMove) {
+    return [straightMove, rightMove];
+  }
+  return [];
+}
+
+function getClockwiseMoves(currentIdx, facing) {
+  const neighbors = getNeighbors(currentIdx);
+  if (neighbors.length === 0) return [];
+  if (neighbors.length === 1) return neighbors;
+
+  const isStart = board[currentIdx].type === 'start';
+  if (facing === null || facing === undefined || isStart) {
+    const preferred = neighbors.find(n => n.dir === 1) || neighbors.find(n => n.dir === 2) || neighbors[0];
+    return [preferred];
+  }
+
+  const straight = facing;
+  const right = (facing + 1) % 4;
+  const left = (facing + 3) % 4;
+  // Never offer the reverse direction
+  const back = (facing + 2) % 4;
+
+  const straightMove = neighbors.find(n => n.dir === straight);
+  const rightMove = neighbors.find(n => n.dir === right);
+  const leftMove = neighbors.find(n => n.dir === left);
+
+  // Prefer straight, then right, then left. Never go backwards.
+  if (straightMove) return [straightMove];
+  if (rightMove) return [rightMove];
+  if (leftMove) return [leftMove];
+
+  // Only if completely stuck, allow any non-back move
+  const nonBack = neighbors.filter(n => n.dir !== back);
+  if (nonBack.length) return [nonBack[0]];
+
+  return [neighbors[0]];
+}
+
+function movePlayer(steps, isDoubles) {
+  const player = players[currentPlayer];
+  let remaining = steps;
+  let passedStart = false;
+
+  function step() {
+    if (remaining <= 0) {
+      if (passedStart) {
+        // Salary already awarded when the token passed START
+      }
+      continueAfterSalary();
+
+      function continueAfterSalary() {
+        if (board[player.pos].type === 'start') {
+          player.money += LAND_START_BONUS;
+          log(`${player.name} landed on START and collected $${LAND_START_BONUS}`);
+          showPopup('Landed on START', `${player.name} collected $${LAND_START_BONUS}!`);
+        }
+        if (player.money < 0) {
+          log(`${player.name} is in deficit. Bank of AlanYap overdraft activated.`);
+          showPopup('Bank of AlanYap', `${player.name} has been granted an overdraft. Interest of 5% per round will apply.`);
+        }
+
+        const cell = board[player.pos];
+        log(`${player.name} landed on ${cell.type}`);
+
+        const afterLanding = () => {
+          const branchOptions = getBranchOptions(player.pos, player.lastDir);
+          if (branchOptions.length === 2) {
+            player.pendingBranch = true;
+            showPopup('Path Splits', 'Straight or Turn Right available. You will choose on your next roll.');
+          } else {
+            player.pendingBranch = false;
+            player.nextDir = null;
+          }
+
+          renderBoard();
+          renderPlayers();
+
+          if (isDoubles && !player.inJail) {
+            showPopup('Doubles!', `${player.name} rolled doubles. Tap OK to roll again.`);
+            const okBtn2 = document.getElementById('popupOk');
+            okBtn2.onclick = function() {
+              closePopup();
+              setTimeout(rollDice, 200);
+            };
+          } else {
+            setTimeout(endTurn, 400);
+          }
+        };
+
+        if ((cell.type === 'residential' || cell.type === 'commercial') && cell.owner === null) {
+          showBuyPopup(player, cell, player.pos, afterLanding);
+        } else {
+          handleLanding(cell, player.pos);
+          afterLanding();
+        }
+      }
+      return;
+    }
+
+    // Mid-move: always continue forward automatically (no prompt)
+    let moves = getClockwiseMoves(player.pos, player.lastDir);
+    
+    // If player chose a specific direction, force it
+    if (player.nextDir !== null && player.nextDir !== undefined) {
+      const allNeighbors = getNeighbors(player.pos);
+      const forced = allNeighbors.find(n => n.dir === player.nextDir);
+      if (forced) {
+        moves = [forced];
+      }
+      player.nextDir = null; // use only for the first step
+    }
+
+    // Force single choice during movement
+    if (moves.length > 1) moves = [moves[0]];
+
+    if (moves.length === 0) {
+      log('No valid moves from here!');
+      setTimeout(endTurn, 400);
+      return;
+    }
+
+    const next = moves[0];
+    const oldPos = player.pos;
+    // Hard block: never move backwards
+    let chosen = next;
+    if (player.lastDir !== null && player.lastDir !== undefined) {
+      const backDir = (player.lastDir + 2) % 4;
+      if (next.dir === backDir) {
+        const alt = moves.find(m => m.dir !== backDir);
+        if (alt) chosen = alt;
+      }
+    }
+    player.pos = chosen.idx;
+    player.lastDir = chosen.dir;
+
+    if (board[player.pos].type === 'start' && oldPos !== player.pos) {
+      passedStart = true;
+      player.money += SALARY;
+      log(`${player.name} passed START and collected $${SALARY}`);
+      showPopup('Salary Collected!', `${player.name} passed START and earned $${SALARY} salary.`);
+      // Pause movement until player taps OK
+      const waitForOk = () => {
+        if (popupActive || popupQueue.length > 0) {
+          setTimeout(waitForOk, 100);
+        } else {
+          remaining--;
+          renderBoard();
+          renderPlayers();
+          setTimeout(step, 220);
+        }
+      };
+      waitForOk();
+      return;
+    }
+
+    remaining--;
+    renderBoard();
+    renderPlayers();
+    setTimeout(step, 220);
+  }
+
+  step();
+}
+
+function handleLanding(cell, cellIdx) {
+  const player = players[currentPlayer];
+
+  if (cell.type === 'chance' || cell.type === 'fate') {
+    drawCard(cell.type);
+  } else if (cell.type === 'jail') {
+    showPopup('Jail', 'Just visiting jail.');
+    log('Just visiting jail.');
+  } else if (cell.type === 'residential' || cell.type === 'commercial') {
+    if (cell.owner === null) {
+      showBuyPopup(player, cell, cellIdx);
+    } else if (cell.owner !== currentPlayer) {
+      const rent = Math.round(cell.price * 0.3 / 10) * 10; // 30%, rounded to nearest 10
+      player.money -= rent;
+      players[cell.owner].money += rent;
+      log(`${player.name} paid $${rent} rent to ${players[cell.owner].name}`);
+      showPopup('Rent Paid', `${player.name} paid $${rent} to ${players[cell.owner].name}`);
+      renderBoard();
+      renderPlayers();
+    }
+  }
+}
+
+function showBuyPopup(player, cell, cellIdx, onDone) {
+  const overlay = document.getElementById('popupOverlay');
+  const buyerIndex = currentPlayer;
+  document.getElementById('popupTitle').textContent = 'Buy Property?';
+  document.getElementById('popupMessage').textContent = `${player.name}, buy this ${cell.type} for $${cell.price}?`;
+
+  const okBtn = document.getElementById('popupOk');
+  okBtn.textContent = 'Buy';
+
+  function finish() {
+    okBtn.textContent = 'OK';
+    okBtn.onclick = closePopup;
+    if (typeof onDone === 'function') onDone();
+  }
+
+  okBtn.onclick = function() {
+    if (board[cellIdx].owner !== null) {
+      showPopup('Already Owned', 'This property is already owned.');
+      finish();
+      return;
+    }
+    if (player.money >= cell.price) {
+      player.money -= cell.price;
+      board[cellIdx].owner = buyerIndex;
+      log(`${player.name} bought the property for $${cell.price}`);
+      showPopup('Bought!', `${player.name} now owns this property.`);
+      renderBoard();
+      renderPlayers();
+    } else {
+      showPopup('Not Enough Money', 'You cannot afford this property.');
+    }
+    finish();
+  };
+
+  let skipBtn = document.getElementById('popupSkip');
+  if (!skipBtn) {
+    skipBtn = document.createElement('button');
+    skipBtn.id = 'popupSkip';
+    skipBtn.textContent = 'Skip';
+    skipBtn.style.cssText = 'margin-left:10px; background:#555; color:#fff; border:none; padding:10px 20px; border-radius:8px;';
+    okBtn.parentNode.appendChild(skipBtn);
+  }
+  skipBtn.style.display = 'inline-block';
+  skipBtn.onclick = function() {
+    log(`${player.name} declined to buy.`);
+    skipBtn.style.display = 'none';
+    closePopup();
+    finish();
+  };
+
+  overlay.style.display = 'flex';
+}
+
+function drawCard(type) {
+  const deck = cards[type];
+  if (!deck.length) {
+    log(`No ${type} cards!`);
+    return;
+  }
+  const card = deck[Math.floor(Math.random() * deck.length)];
+  log(`Drew ${type}: ${card.text}`);
+  showPopup(type === 'chance' ? 'Chance' : 'Fate', card.text + (card.money ? ` (${card.money >= 0 ? '+' : ''}$${card.money})` : ''));
+  const player = players[currentPlayer];
+  player.money += card.money;
+  if (card.extra === 'jail') {
+    sendToJail();
+  }
+  renderPlayers();
+}
+
+function endTurn() {
+  // Apply overdraft interest before switching
+  const player = players[currentPlayer];
+  if (player.money < 0) {
+    const interest = Math.ceil(Math.abs(player.money) * OVERDRAFT_INTEREST);
+    player.money -= interest;
+    log(`${player.name} paid $${interest} overdraft interest to Bank of AlanYap.`);
+    showPopup('Overdraft Interest', `${player.name} paid $${interest} interest (5%) to the Bank of AlanYap.`);
+  }
+
+  currentPlayer = (currentPlayer + 1) % players.length;
+  updatePlayerSelect();
+  renderPlayers();
+  log(`Turn: ${players[currentPlayer].name}`);
+}
+
+function sendToJail() {
+  const player = players[currentPlayer];
+  player.inJail = true;
+  player.jailTurns = 0;
+  const jailIdx = board.findIndex(c => c.type === 'jail');
+  if (jailIdx !== -1) {
+    player.pos = jailIdx;
+    player.lastDir = null;
+  }
+  log(`${player.name} was sent to jail!`);
+  showPopup('Jail', `${player.name} was sent to jail!`);
+  renderBoard();
+  renderPlayers();
+}
+
+// ===== DEBUG FUNCTIONS =====
+function setPlayerMoney() {
+  const idx = parseInt(document.getElementById('debugPlayer').value);
+  const money = parseInt(document.getElementById('debugMoney').value) || 0;
+  players[idx].money = money;
+  renderPlayers();
+  log(`Debug: Set ${players[idx].name} money to $${money}`);
+}
+
+function teleportPlayer() {
+  const idx = parseInt(document.getElementById('debugPlayer').value);
+  const pos = parseInt(document.getElementById('debugPos').value) || 0;
+  if (pos >= 0 && pos < GRID * GRID) {
+    players[idx].pos = pos;
+    players[idx].lastDir = null;
+    renderBoard();
+    log(`Debug: Teleported ${players[idx].name} to cell ${pos}`);
+  }
+}
+
+function addMoney(amount) {
+  const idx = parseInt(document.getElementById('debugPlayer').value);
+  players[idx].money += amount;
+  renderPlayers();
+  log(`Debug: ${amount >= 0 ? '+' : ''}${amount} to ${players[idx].name}`);
+}
+
+function goToJail() {
+  const idx = parseInt(document.getElementById('debugPlayer').value);
+  const prev = currentPlayer;
+  currentPlayer = idx;
+  sendToJail();
+  currentPlayer = prev;
+}
+
+function freeFromJail() {
+  const idx = parseInt(document.getElementById('debugPlayer').value);
+  players[idx].inJail = false;
+  renderPlayers();
+  log(`Debug: Freed ${players[idx].name} from jail`);
+}
+
+function updateDebugPlayer() {
+  const idx = parseInt(document.getElementById('debugPlayer').value);
+  document.getElementById('debugMoney').value = players[idx].money;
+  document.getElementById('debugPos').value = players[idx].pos;
+}
+
+function addCard() {
+  const text = document.getElementById('cardText').value.trim();
+  const money = parseInt(document.getElementById('cardMoney').value) || 0;
+  const type = document.getElementById('cardType').value;
+  if (!text) return alert('Enter card text');
+  cards[type].push({ text, money });
+  document.getElementById('cardText').value = '';
+  renderCards();
+  log(`Added custom ${type} card: ${text}`);
+}
+
+function removeCard(type, idx) {
+  // Simplified removal - re-render needed carefully
+  const deck = cards[type];
+  // Find actual index by counting
+  let count = 0;
+  for (let i = 0; i < deck.length; i++) {
+    if (count === idx) {
+      deck.splice(i, 1);
+      break;
+    }
+    count++;
+  }
+  renderCards();
+}
+
+function clearSelection() {
+  document.getElementById('paintType').value = 'empty';
+}
+
+// ===== PERSISTENCE =====
+function saveGame() {
+  const data = { board, path, players, currentPlayer, cards };
+  localStorage.setItem('monopolyMaker', JSON.stringify(data));
+  log('Game saved to localStorage');
+  alert('Saved!');
+}
+
+function loadGame() {
+  const raw = localStorage.getItem('monopolyMaker');
+  if (!raw) return alert('No save found');
+  const data = JSON.parse(raw);
+  board = data.board;
+  path = data.path;
+  players = data.players;
+  currentPlayer = data.currentPlayer;
+  cards = data.cards;
+  renderBoard();
+  renderPlayers();
+  renderCards();
+  updatePlayerSelect();
+  log('Game loaded from localStorage');
+}
+
+function randomizeAllTiles() {
+  const actions = ['residential', 'commercial', 'chance', 'fate', 'jail'];
+  let changed = 0;
+
+  board.forEach((cell) => {
+    // Only randomize unlocked path tiles
+    if (cell.type === 'path' && cell.owner === null) {
+      const type = actions[Math.floor(Math.random() * actions.length)];
+      cell.type = type;
+      cell.caption = type === 'jail' ? 'JAIL' : '';
+      if (type === 'residential') cell.price = Math.round((200 + Math.random() * 400) / 100) * 100;
+      if (type === 'commercial') cell.price = Math.round((400 + Math.random() * 400) / 100) * 100;
+      changed++;
+    }
+  });
+
+  renderBoard();
+  log(`Randomized ${changed} path tiles into action tiles.`);
+  showPopup('Randomized', `Converted ${changed} path tiles into random actions. START was left unchanged.`);
+}
+
+function randomizePathOnly() {
+  // Clear only path tiles back to empty, keep specials and owned
+  board.forEach(cell => {
+    if (cell.type === 'path' && cell.owner === null) {
+      cell.type = 'empty';
+    }
+  });
+
+  // Build a fresh random path
+  const pathSet = new Set();
+  // Outer loop
+  for (let x = 0; x < GRID; x++) pathSet.add(x);
+  for (let y = 1; y < GRID; y++) pathSet.add(y * GRID + (GRID - 1));
+  for (let x = GRID - 2; x >= 0; x--) pathSet.add((GRID - 1) * GRID + x);
+  for (let y = GRID - 2; y >= 1; y--) pathSet.add(y * GRID);
+
+  // Random internal branches
+  for (let b = 0; b < 6; b++) {
+    const startFrom = [...pathSet][Math.floor(Math.random() * pathSet.size)];
+    let cx = startFrom % GRID;
+    let cy = Math.floor(startFrom / GRID);
+    const len = 2 + Math.floor(Math.random() * 5);
+    for (let s = 0; s < len; s++) {
+      const dirs = [[0,-1],[1,0],[0,1],[-1,0]];
+      const [dx, dy] = dirs[Math.floor(Math.random() * 4)];
+      const nx = cx + dx;
+      const ny = cy + dy;
+      if (nx >= 0 && nx < GRID && ny >= 0 && ny < GRID) {
+        const nidx = ny * GRID + nx;
+        // Don't overwrite existing specials
+        if (board[nidx].type === 'empty' || board[nidx].type === 'path') {
+          pathSet.add(nidx);
+        }
+        cx = nx;
+        cy = ny;
+      }
+    }
+  }
+
+  // Paint new path (only on empty cells)
+  pathSet.forEach(idx => {
+    if (board[idx].type === 'empty') {
+      board[idx].type = 'path';
+    }
+  });
+
+  renderBoard();
+  log('Path layout randomized.');
+  showPopup('Path Randomized', 'New random path layout generated for testing.');
+}
+
+function resetAllToGray() {
+  board.forEach(cell => {
+    cell.type = 'empty';
+    cell.owner = null;
+    cell.level = 0;
+    cell.caption = '';
+  });
+  renderBoard();
+  log('All tiles reset to gray.');
+  showPopup('Reset', 'All tiles have been reset to gray.');
+}
+
+function resetBoard() {
+  board = Array(GRID * GRID).fill(null).map(() => ({
+    type: 'empty',
+    owner: null,
+    level: 0,
+    caption: '',
+    price: 200
+  }));
+
+  // Fill all four sides
+  for (let x = 0; x < GRID; x++) {
+    board[x].type = 'path';
+    board[(GRID - 1) * GRID + x].type = 'path';
+  }
+  for (let y = 0; y < GRID; y++) {
+    board[y * GRID].type = 'path';
+    board[y * GRID + (GRID - 1)].type = 'path';
+  }
+
+  board[0].type = 'start';
+  board[0].caption = 'START';
+  board[GRID - 1].type = 'jail';
+  board[GRID - 1].caption = 'P ST';
+
+  players.forEach(p => {
+    p.pos = 0;
+    p.inJail = false;
+    p.jailTurns = 0;
+    p.lastDir = null;
+    p.nextDir = null;
+    p.pendingBranch = false;
+    p.money = START_MONEY;
+  });
+  currentPlayer = 0;
+
+  renderBoard();
+  renderPlayers();
+  log('Board reset to outer square.');
+  showPopup('Board Reset', 'Outer square created on all four sides.');
+}
+
+function generateRandomMap() {
+  if (!confirm('Generate a new random map? Current board will be replaced.')) return;
+
+  // Clear everything
+  board = Array(GRID * GRID).fill(null).map(() => ({
+    type: 'empty',
+    owner: null,
+    level: 0,
+    caption: '',
+    price: Math.round((200 + Math.random() * 600) / 100) * 100
+  }));
+
+  const pathSet = new Set();
+
+  // Simple reliable clockwise outer loop
+  // Top row
+  for (let x = 0; x < GRID; x++) pathSet.add(x);
+  // Right column
+  for (let y = 1; y < GRID; y++) pathSet.add(y * GRID + (GRID - 1));
+  // Bottom row
+  for (let x = GRID - 2; x >= 0; x--) pathSet.add((GRID - 1) * GRID + x);
+  // Left column
+  for (let y = GRID - 2; y >= 1; y--) pathSet.add(y * GRID);
+
+  // Add a few random internal branches that stay connected
+  for (let b = 0; b < 4; b++) {
+    const startFrom = [...pathSet][Math.floor(Math.random() * pathSet.size)];
+    let cx = startFrom % GRID;
+    let cy = Math.floor(startFrom / GRID);
+    const len = 2 + Math.floor(Math.random() * 4);
+    for (let s = 0; s < len; s++) {
+      const dirs = [[0,-1],[1,0],[0,1],[-1,0]];
+      const [dx, dy] = dirs[Math.floor(Math.random() * 4)];
+      const nx = cx + dx;
+      const ny = cy + dy;
+      if (nx >= 0 && nx < GRID && ny >= 0 && ny < GRID) {
+        const nidx = ny * GRID + nx;
+        pathSet.add(nidx);
+        cx = nx;
+        cy = ny;
+      }
+    }
+  }
+
+  // Paint all path cells white
+  pathSet.forEach(idx => {
+    board[idx].type = 'path';
+  });
+
+  // Now convert some path cells into action tiles (never place outside pathSet)
+  const available = [...pathSet];
+  // Shuffle
+  for (let i = available.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [available[i], available[j]] = [available[j], available[i]];
+  }
+
+  // START on first
+  if (available.length) {
+    const startIdx = available.pop();
+    board[startIdx].type = 'start';
+    board[startIdx].caption = 'START';
+  }
+
+  const place = (type, count) => {
+    for (let n = 0; n < count && available.length; n++) {
+      const idx = available.pop();
+      board[idx].type = type;
+      if (type === 'jail') board[idx].caption = 'JAIL';
+    }
+  };
+
+  place('jail', 1);
+  place('residential', 5);
+  place('commercial', 3);
+  place('chance', 2);
+  place('fate', 2);
+
+  // Set prices by type
+  board.forEach(cell => {
+    if (cell.type === 'residential') cell.price = Math.round((200 + Math.random() * 400) / 100) * 100;
+    if (cell.type === 'commercial') cell.price = Math.round((400 + Math.random() * 400) / 100) * 100;
+  });
+
+  // Store path for any legacy uses
+  path = [...pathSet];
+
+  // Reset players
+  const startCell = board.findIndex(c => c.type === 'start');
+  players.forEach(p => {
+    p.pos = startCell !== -1 ? startCell : path[0];
+    p.inJail = false;
+    p.lastDir = null;
+    p.money = START_MONEY;
+  });
+
+  renderBoard();
+  renderPlayers();
+  log(`Random map generated. All action tiles are on the path.`);
+}
+
+// Start
+init();
+</script>
+</body>
+</html>
